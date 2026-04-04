@@ -2,7 +2,7 @@
 
 A full-stack application with a Retrieval-Augmented Generation (RAG) service, backend API, and frontend UI, deployed using Docker and managed behind NGINX.
 
----
+===
 
 ## 🚀 Tech Stack
 
