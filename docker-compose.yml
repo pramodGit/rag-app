@@ -1,0 +1,22 @@
+version: "3"
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: rag-frontend
+    ports:
+      - "3001:3000"
+
+  backend:
+    build: ./backend
+    container_name: rag-backend
+    ports:
+      - "5001:5000"
+
+  rag:
+    build: ./rag
+    container_name: rag-python
+    ports:
+      - "8001:8000"
+    environment:
+      - OPENAI_API_KEY=your_key
