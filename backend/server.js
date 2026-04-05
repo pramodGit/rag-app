@@ -13,31 +13,51 @@ const upload = multer({ dest: 'uploads/' });
 const USER_ID = "user1";
 
 app.post('/upload', upload.single('file'), async (req, res) => {
-  const formData = new FormData();
-  formData.append('file', fs.createReadStream(req.file.path));
+  try {
+    // ✅ Fix crash (VERY IMPORTANT)
+    if (!req.file) {
+      return res.status(400).json({ error: 'File is required' });
+    }
 
-  const response = await axios.post(
-    `http://localhost:8000/upload?user_id=${USER_ID}`,
-    formData,
-    { headers: formData.getHeaders() }
-  );
+    console.log('Uploaded file:', req.file.path);
 
-  res.json(response.data);
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(req.file.path));
+
+    // ✅ Use docker service name (NOT localhost)
+    const response = await axios.post(
+      `http://rag-python:8000/upload?user_id=${USER_ID}`,
+      formData,
+      { headers: formData.getHeaders() }
+    );
+
+    res.json(response.data);
+
+  } catch (err) {
+    console.error('Upload error:', err.message);
+    res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 app.post('/ask', async (req, res) => {
-  const response = await axios.post(
-    `http://localhost:8000/ask`,
-    null,
-    {
-      params: {
-        user_id: USER_ID,
-        q: req.body.question
+  try {
+    const response = await axios.post(
+      `http://rag-python:8000/ask`,
+      null,
+      {
+        params: {
+          user_id: USER_ID,
+          q: req.body.question
+        }
       }
-    }
-  );
+    );
 
-  res.json(response.data);
+    res.json(response.data);
+
+  } catch (err) {
+    console.error('Ask error:', err.message);
+    res.status(500).json({ error: 'Ask failed' });
+  }
 });
 
 app.listen(5000, () => console.log('Node running on 5000'));

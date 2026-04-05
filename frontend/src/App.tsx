@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import axios from 'axios';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -17,7 +16,13 @@ const App: React.FC = () => {
     formData.append('file', file);
 
     try {
-      await axios.post('api/upload', formData);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      console.log(data);
 
       alert('Uploaded');
     } catch (err) {
@@ -33,11 +38,16 @@ const App: React.FC = () => {
     }
 
     try {
-      const res = await axios.post('http://YOUR-IP:5000/ask', {
-        question: q,
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: q }),
       });
 
-      setAns(res.data.answer);
+      const data = await res.json();
+      setAns(data.answer);
     } catch (err) {
       console.error(err);
       alert('Error fetching answer');
