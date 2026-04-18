@@ -32,6 +32,7 @@ frontend/build/
 # ======================
 
 backend/node_modules/
+backend/uploads
 
 # ======================
 
