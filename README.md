@@ -79,30 +79,24 @@ http://your-domain.com
 
 ---
 
-## 🔧 NGINX Configuration (Example)
+## 🔧 Without Docker
 
 ```
-server {
-    listen 80;
+The app successfully:
 
-    location / {
-        proxy_pass http://frontend:3001;
-    }
+✅ Uploaded the PDF
+✅ Parsed and indexed it with FAISS
+✅ Found relevant chunks
+✅ Answered using local Llama3.2 — no API key, no cost, no limits!
 
-    location /api/ {
-        proxy_pass http://backend:5001;
-    }
+The answer even looks correct — it extracted frontend skills from the resume PDF.
+Your full stack is now running locally:
 
-    location /rag/ {
-        proxy_pass http://rag:8001;
-    }
-}
+Frontend → browser
+Node.js → localhost:5000
+Python/FastAPI → localhost:8000
+Ollama/Llama3.2 → localhost:11434
 ```
-
-*(Adjust based on your actual service names and ports in docker-compose)*
-
----
-
 ## 🔧 Environment Variables
 
 Create a `.env` file if needed:
