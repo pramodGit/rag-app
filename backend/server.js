@@ -12,7 +12,7 @@ app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 const USER_ID = "user1";
 
-app.post('/upload', upload.single('file'), async (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     // ✅ Fix crash (VERY IMPORTANT)
     if (!req.file) {
@@ -26,7 +26,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
     // ✅ Use docker service name (NOT localhost)
     const response = await axios.post(
-      `http://rag-python:8000/upload?user_id=${USER_ID}`,
+      `http://127.0.0.1:8000/upload?user_id=${USER_ID}`,
       formData,
       { headers: formData.getHeaders() }
     );
@@ -39,10 +39,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-app.post('/ask', async (req, res) => {
+app.post('/api/ask', async (req, res) => {
   try {
     const response = await axios.post(
-      `http://rag-python:8000/ask`,
+      `http://127.0.0.1:8000/ask`,
       null,
       {
         params: {

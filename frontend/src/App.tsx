@@ -16,7 +16,7 @@ const App: React.FC = () => {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/upload', {
+      const res = await fetch('http://localhost:5000/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -38,7 +38,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const res = await fetch('/api/ask', {
+      const res = await fetch('http://localhost:5000/api/ask', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
