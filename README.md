@@ -1,16 +1,19 @@
-# RAG App
+# RAG App — PDF Q&A
 
-A full-stack application with a Retrieval-Augmented Generation (RAG) service, backend API, and frontend UI, deployed using Docker and managed behind NGINX.
+A full-stack **Naive RAG (Retrieval-Augmented Generation)** application that lets you upload a PDF and ask questions about it. Answers are generated locally using **Ollama + Llama3.2** — no API key, no cost, no limits.
 
-===
+---
 
 ## 🚀 Tech Stack
 
-* **Frontend:** React + Vite + TypeScript
-* **Backend:** Node.js (Express)
-* **RAG Service:** Python
-* **Reverse Proxy:** NGINX
-* **Containerization:** Docker & Docker Compose
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React + Vite + TypeScript |
+| **Backend** | Node.js (Express) |
+| **RAG Service** | Python + FastAPI |
+| **Vector Store** | FAISS |
+| **Embeddings** | HuggingFace (all-MiniLM-L6-v2) |
+| **LLM** | Ollama + Llama3.2 (local, free) |
 
 ---
 
@@ -18,128 +21,252 @@ A full-stack application with a Retrieval-Augmented Generation (RAG) service, ba
 
 ```
 rag-app/
-├── backend/        # Node.js API
-├── frontend/       # React frontend
-├── rag/            # Python RAG service
-├── docker-compose.yml
+├── backend/          # Node.js API (port 5000)
+├── frontend/         # React frontend (port 5173)
+├── rag/              # Python RAG service (port 8000)
+│   ├── rag_service.py
+│   ├── faiss_indexes/  # Persisted vector indexes
+│   └── venv/           # Python virtual environment
+├── start.ps1         # Start all services
+├── stop.ps1          # Stop all services
+├── restart.ps1       # Restart all services
 └── README.md
+```
+
+---
+
+## 🧠 RAG Architecture — Naive RAG
+
+This app implements **Naive RAG** — the simplest and most effective RAG pattern for document Q&A.
+
+### What is Naive RAG?
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  INDEXING (Upload)                  │
+│                                                     │
+│  PDF File                                           │
+│     ↓                                               │
+│  Extract text (PyPDFLoader)                         │
+│     ↓                                               │
+│  Split into 500-token chunks                        │
+│     ↓                                               │
+│  Convert chunks → vectors (HuggingFace embeddings)  │
+│     ↓                                               │
+│  Store vectors in FAISS database                    │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                 RETRIEVAL (Ask)                     │
+│                                                     │
+│  User Question: "What are the frontend skills?"     │
+│     ↓                                               │
+│  Convert question → vector                          │
+│     ↓                                               │
+│  FAISS finds top-8 most similar chunks              │
+│     ↓                                               │
+│  Return relevant text chunks                        │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                GENERATION (LLM)                     │
+│                                                     │
+│  System instruction + Context chunks + Question     │
+│     ↓                                               │
+│  Single prompt string sent to Ollama/Llama3.2       │
+│     ↓                                               │
+│  LLM reads context and generates answer             │
+│     ↓                                               │
+│  Answer returned to UI                              │
+└─────────────────────────────────────────────────────┘
+```
+
+### RAG Architecture Comparison
+
+| Type | What it adds | This App |
+|------|-------------|----------|
+| **Naive RAG** | Basic chunk → retrieve → generate | ✅ |
+| **Advanced RAG** | Query rewriting, reranking, hybrid search | ❌ |
+| **Modular RAG** | Routing, agents, multiple retrievers | ❌ |
+| **Agentic RAG** | Multi-step reasoning, tool use, planning | ❌ |
+
+---
+
+## 🤖 How the LLM Generates Answers
+
+**The LLM never sees the PDF file.** It only receives a plain text prompt.
+
+### What the LLM actually receives:
+
+```
+You are a resume analysis assistant. Extract and list information
+directly from the context. Do NOT ask clarifying questions.
+
+Context:
+[chunk 1 text]
+[chunk 2 text]
+... (up to 8 chunks)
+
+Question: Frontend skills?
+
+Provide a direct, specific answer based only on the context above:
+```
+
+### Why this works:
+
+The LLM performs **reading comprehension** on the injected context — it has no memory of your PDF, no special file access. RAG injects the relevant parts at query time so the LLM can answer accurately.
+
+### Why pay per token (cloud LLMs)?
+
+```
+Input tokens  = prompt sent TO the LLM   (instruction + context + question)
+Output tokens = answer generated BY LLM
+
+Every token = GPU computation = electricity = cost
+```
+
+| Provider | Cost per question |
+|----------|-----------------|
+| GPT-4o | ~$0.005 |
+| Gemini Flash | ~$0.0001 |
+| **Ollama (this app)** | **$0.00** ✅ |
+
+Ollama runs on your local CPU — no tokens, no billing, no limits.
+
+---
+
+## 🌐 System Architecture
+
+```
+Browser (http://localhost:5173)
+         ↓
+   React Frontend
+         ↓
+   Node.js Backend (port 5000)
+     ↓           ↓
+  /upload       /ask
+     ↓           ↓
+  Python FastAPI RAG Service (port 8000)
+     ↓           ↓
+  FAISS DB    Ollama LLM (port 11434)
+  (disk)      Llama3.2 (local)
 ```
 
 ---
 
 ## ⚙️ Prerequisites
 
-* Docker
-* Docker Compose
-* NGINX (installed on server or containerized)
+- **Node.js** (v18+)
+- **Python** (3.10+)
+- **Ollama** — download from [ollama.com/download](https://ollama.com/download)
 
 ---
 
-## 🌐 Architecture
-
-```
-Client (Browser)
-       ↓
-     NGINX
-       ↓
- ┌───────────────┬───────────────┬───────────────┐
- │   Frontend    │    Backend    │   RAG Service │
- │  (React App)  │ (Node.js API) │   (Python)    │
- └───────────────┴───────────────┴───────────────┘
-```
-
----
-
-## ▶️ How to Run
+## 🛠️ First Time Setup
 
 ### 1. Clone the repository
 
-```
+```bash
 git clone https://github.com/pramodGit/rag-app.git
 cd rag-app
 ```
 
----
+### 2. Setup Python virtual environment
 
-### 2. Start services
-
-```
-docker-compose up --build -d
-```
-
----
-
-### 3. Access the application
-
-Access via your domain or server IP configured in NGINX:
-
-```
-http://your-domain.com
+```powershell
+cd rag
+python -m venv venv
+venv\Scripts\Activate.ps1
+pip install fastapi uvicorn langchain langchain-community langchain-ollama faiss-cpu sentence-transformers pypdf python-multipart
+cd ..
 ```
 
----
+### 3. Install Node dependencies
 
-## 🔧 Without Docker
-
+```powershell
+cd backend
+npm install
+cd ..\frontend
+npm install
+cd ..
 ```
-The app successfully:
 
-✅ Uploaded the PDF
-✅ Parsed and indexed it with FAISS
-✅ Found relevant chunks
-✅ Answered using local Llama3.2 — no API key, no cost, no limits!
+### 4. Pull Ollama model
 
-The answer even looks correct — it extracted frontend skills from the resume PDF.
-Your full stack is now running locally:
-
-Frontend → browser
-Node.js → localhost:5000
-Python/FastAPI → localhost:8000
-Ollama/Llama3.2 → localhost:11434
-```
-## 🔧 Environment Variables
-
-Create a `.env` file if needed:
-
-```
-ENV_VAR_NAME=value
+```powershell
+ollama pull llama3.2
 ```
 
 ---
 
-## 📦 Useful Commands
+## ▶️ Running the App
 
-### View running containers
+### Start all services
 
-```
-docker ps
-```
-
-### Stop services
-
-```
-docker-compose down
+```powershell
+.\start.ps1
 ```
 
-### Rebuild services
+### Stop all services
 
+```powershell
+.\stop.ps1
 ```
-docker-compose up --build
+
+### Restart all services
+
+```powershell
+.\restart.ps1
 ```
+
+### Service URLs
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Node Backend | http://localhost:5000 |
+| Python RAG | http://localhost:8000 |
+| Ollama | http://localhost:11434 |
 
 ---
 
-## 📌 Notes
+## 📜 PowerShell Scripts
 
-* NGINX acts as a reverse proxy for all services
-* Services communicate internally via Docker network
-* Only NGINX is exposed publicly
+### `start.ps1`
+Starts Ollama, Python RAG service, Node backend, and React frontend in separate terminal windows.
+
+### `stop.ps1`
+Kills all running service processes (ollama, node, python).
+
+### `restart.ps1`
+Runs `stop.ps1` then `start.ps1` — use after making code changes.
 
 ---
+
+## 💡 How to Use
+
+1. Open **http://localhost:5173** in your browser
+2. Click **Choose File** and select a PDF
+3. Click **Upload** — wait for "PDF processed successfully"
+4. Type a question in the input box
+5. Click **Ask** — wait 30–60 seconds for Llama3.2 to respond
+6. Answer appears below ✅
+
+> **Note:** The PDF index is saved to disk (`rag/faiss_indexes/`), so you don't need to re-upload after restarting the server.
+
+---
+
+# RAG is only needed when:
+Data is too large to fit in context window
+         OR
+Data is external (PDF, database, files)
+         OR
+Data changes frequently
 
 ## 👤 Author
 
-**pramodGit**
+**Pramod Kumar**
+Delhi, India • [linkedin.com/in/pramodk0404](https://linkedin.com/in/pramodk0404)
 
 ---
 
